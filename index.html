@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Socket.IO chat</title>
+    <style>
+    /*   body { margin: 0; padding-bottom: 3rem; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+
+      #form { background: rgba(0, 0, 0, 0.15); padding: 0.25rem; position: fixed; bottom: 0; left: 0; right: 0; display: flex; height: 3rem; box-sizing: border-box; backdrop-filter: blur(10px); }
+      #input { border: none; padding: 0 1rem; flex-grow: 1; border-radius: 2rem; margin: 0.25rem; }
+      #input:focus { outline: none; }
+      #form > button { background: #333; border: none; padding: 0 1rem; margin: 0.25rem; border-radius: 3px; outline: none; color: #fff; }
+
+      #messages { list-style-type: none; margin: 0; padding: 0; }
+      #messages > li { padding: 0.5rem 1rem; }
+      #messages > li:nth-child(odd) { background: #efefef; } */
+      #colores{
+				border: 0px solid black;
+				width:15px;
+				height:15px;
+				margin:1px;
+			}
+			#panel{position:absolute; 
+					border: 0px solid black;}
+			a{text-decoration:none;}
+    </style>
+  </head>
+  <body>
+    <!-- <ul id="messages"></ul>
+    <form id="form" action="">
+      <input id="input" autocomplete="off" /><button>Send</button>
+    </form> -->
+    <div>
+			<select id="seleccion" name="seleccion">
+				<option value="1">Arco</option>
+				<option value="2">Recta</option>
+				<option value="3">Punto</option>
+				<option value="4">Goma De Borrar</option>
+			</select>
+      <select id="relleno" name="relleno">
+				<option value="0">Color Linia</option>
+				<option value="1">Color Relleno</option>
+			</select>
+		</div>
+		<canvas id="micanvas" width="600" height="400" style="border: 1px solid black;">
+			canvas no soportado
+		</canvas>
+		<div id="panel"><div>
+		<div id="colores"></div>
+    <script src="/socket.io/socket.io.js"></script>
+
+    <script defer>
+      const socket = io();
+      let selector = document.getElementById("seleccion");
+				let canvas = document.getElementById("micanvas");
+				let ctx = canvas.getContext("2d");
+				let valor = "";
+				let x1 = 0;
+				let y1 = 0;
+				let x2 = 0;
+				let y2 = 0;
+				let x3 = 0;
+				let y3 = 0;
+				let x4 = 0;
+				let y4 = 0;
+
+        let imagen;
+			function cargaContextoCanvas(idCanvas){///obtenir el context de canvas
+				var elemento = document.getElementById(idCanvas);
+				if(elemento && elemento.getContext){
+					var contexto = elemento.getContext('2d');
+					if(contexto){
+						return contexto;
+					}
+				}
+				return false;
+			}
+
+			function panelcolor(){///crea el panel de colors
+				let can = document.getElementById('micanvas')
+				let pan=document.getElementById("panel");
+				pan.style.top=can.offsetTop-2+'px';
+				pan.style.left=(can.offsetLeft+can.width)+'px';
+				let elem=document.getElementById("colores");
+				to=can.offsetTop-24;
+				lef=can.offsetLeft+45;
+				for (let j=0;j<2;j++){
+					let dic = document.createElement("div"); 
+					let con = document.createTextNode(""); 
+					dic.appendChild(con);
+					dic.style.backgroundColor=color[0];
+					dic.id='muestra'+j;
+					dic.classname="col";
+					dic.style.border="1px solid black";
+					dic.style.width="33px";
+					dic.style.height="20px";
+					dic.style.position="absolute";
+					dic.style.top=(to-5)+"px";
+					if(j==0)
+						dic.style.left=(lef-45)+"px";
+					else
+						dic.style.left=(lef+9)+"px";
+					dic.style.marginLeft="1px";
+					elem.appendChild(dic);
+				}
+				for(var i=10;i<color.length;i++){
+					var dic = document.createElement("div"); 
+					var con = document.createTextNode(""); 
+					dic.appendChild(con);
+					dic.style.backgroundColor=color[i];
+					dic.id=i
+					dic.classname="col";
+					dic.style.border="1px solid black";
+					dic.style.width="15px";
+					dic.style.height="15px";
+					dic.style.position="absolute";
+					///dic.onclick=/////////Crida a la funcio de canvi de color al fer click
+					if(i%5==0){
+						to+=18;
+						lef=can.offsetLeft;
+					}
+					dic.style.top=to+"px";
+					dic.style.left=lef+"px";
+					lef+=18;
+					dic.style.marginLeft="1px";
+					elem.appendChild(dic);
+					dic.onclick = function(e){
+						let  mostra = document.getElementById('muestra' + document.getElementById('relleno').value)
+						mostra.style.backgroundColor = color[e.currentTarget.id]
+					}
+				}
+			}
+
+        color = new Array ('#000000','#000080','#00008B','#0000CD','#0000FF',
+						'#006400','#008000','#008B8B','#00BFFF','#00FF00',
+						'#00FF7F','#00FFFF','#1E90FF','#20B2AA','#228B22',
+						'#2E8B57','#2F4F4F','#32CD32','#3CB371','#40E0D0',
+						'#4169E1','#4682B4','#483D8B','#48D1CC','#4B0082',
+						'#556B2F','#5F9EA0','#6495ED','#66CDAA','#696969',
+						'#6A5ACD','#6B8E23','#708090','#778899','#7B68EE',
+						'#7CFC00','#7FFF00','#7FFFD4','#800000','#800080',
+						'#808000','#808080','#87CEFA','#8A2BE2','#8B0000',
+						'#8B008B','#8B4513','#8FBC8F','#90EE90','#9370DB',
+						'#9400D3','#98FB98','#9932CC','#9ACD32','#A0522D',
+						'#A52A2A','#A9A9A9','#ADD8E6','#ADFF2F','#AFEEEE',
+						'#B0C4DE','#B0E0E6','#B22222','#B8860B','#BA55D3',
+						'#BC8F8F','#BDB76B','#C0C0C0','#C71585','#CD5C5C',
+						'#CD853F','#D2691E','#D2B48C','#D3D3D3','#D8BFD8',
+						'#DA70D6','#DAA520','#DB7093','#DC143C','#DCDCDC',
+						'#DDA0DD','#DEB887','#E0FFFF','#E6E6FA','#E9967A',
+						'#EE82EE','#EEE8AA','#F08080','#F4A460','#FA8072',
+						'#FC0FC0','#FF0000','#FF6347','#FF69B4','#FF7F50',
+						'#FF8C00','#FFA07A','#FFA500','#FFB6C1','#FFD700');
+
+				
+				//Colors
+				panelcolor();
+
+        canvas.addEventListener("mousedown", (e) => {
+							if(selector.value === "2") {
+                x1 = e.offsetX;
+                y1 = e.offsetY;
+                console.log("funciona");
+							}else if(selector.value == "4") {
+								x3 = e.offsetX;
+								y3 = e.offsetY;
+							}else if(selector.value == "1"){
+							/* 	ctx.beginPath()
+								ctx.moveTo(e.offsetX, e.offsetY);
+								canvas.addEventListener("mousemove", drawLine) */
+                x4 = e.offsetX;
+                y4 = e.offsetY;
+							}
+						});
+
+						function drawLine(e) {
+						
+							if(selector.value == "1"){
+								color1 = getCurrentColor();
+								ctx.strokeStyle = `${color1}`;
+								ctx.lineTo(e.offsetX, e.offsetY);
+								ctx.stroke();
+							}
+						
+						}
+		
+						canvas.addEventListener("mouseup", (e) => {
+  						let color1 = getCurrentColor();
+							if(selector.value === "2") {
+                socket.emit('drawLine', { color: color1, x: e.offsetX, y: e.offsetY, x1: x1, y1: y1});
+							}else if(selector.value == "3"){
+                socket.emit('drawDot', { color: color1, x: e.offsetX, y: e.offsetY, x1: x1, y1: y1});
+							}else if(selector.value == "5") {
+								
+								ctx.beginPath();
+								let a = y2 - e.offsetY;
+								let b = x2 - e.offsetX;
+								let suma = (a**2) + (b**2);
+								let radio = Math.sqrt(suma);
+								ctx.arc(x2, y2, radio, (Math.PI / 180) * 0, (Math.PI / 180) * 360);
+
+								if(fill =="stroke"){
+									color1 = getCurrentColor();
+									ctx.strokeStyle= `${color1}`;
+									ctx.stroke();
+								}else {
+									color1 = getCurrentColor();
+									ctx.fillStyle= `${color1}`;
+									ctx.fill();
+								}
+								
+							}else if(selector.value == "4"){
+								ctx.clearRect(x3, y3, e.offsetX - x3, e.offsetY -y3);
+							}else if(selector.value == "1") {
+								/* canvas.removeEventListener("mousemove", drawLine); */
+                socket.emit("drawArc", { color: color1, x: x4, y: y4, x1: e.offsetX, y1: e.offsetY});
+							}
+						})
+
+					canvas.addEventListener("click", (e) => {
+						if(selector.value == "3"){
+              let color1 = getCurrentColor();
+							/* console.log(imagen.width);
+							console.log(imagen.height);
+							console.log(e.offsetX);
+							console.log(e.offsetY);
+							ctx.drawImage(imagen, imagen.width - e.offsetX, imagen.height-e.offsetY); */
+              socket.emit('drawDot', { color: color1, x: e.offsetX, y: e.offsetY});
+
+						}
+				});
+//Recibir del servidor
+        socket.on("drawLine", ({ color, x, y, x1, y1 }) => {
+                ctx.beginPath();
+                ctx.strokeStyle = color;
+                ctx.moveTo(x, y);
+                ctx.lineTo(x1, y1);
+                ctx.stroke();
+                });
+        socket.on("drawDot", ({ color, x, y }) => {
+                ctx.beginPath();
+                ctx.fillStyle = color;
+                ctx.arc(x, y, 10, 0, 2 * Math.PI);
+                ctx.fill();
+                });
+
+        socket.on("drawArc", ({ color, x, y, x1, y1 }) => {
+          ctx.beginPath();
+          let centerX = (x + x1) / 2;
+          let centerY = (y + y1) / 2;
+          let a = y - y1;
+          let b = x - x1;
+          let suma = a ** 2 + b ** 2;
+          let radio = Math.sqrt(suma);
+          let startAngle = Math.atan2(y - centerY, x - centerX);
+          let endAngle = Math.atan2(y1 - centerY, x1 - centerX);
+          ctx.arc(centerX, centerY, radio, startAngle, endAngle);
+          ctx.strokeStyle = color;
+          ctx.stroke();
+        });
+
+			function getCurrentFill(){
+				return document.getElementById('relleno').value == 0 ? 'stroke' : 'fill'
+			}
+			function getCurrentColor(){
+				let  mostra = document.getElementById('muestra' + document.getElementById('relleno').value)
+				return mostra.style.backgroundColor
+			}
+			function selectImageTrigger(img){
+				console.log("S'ha seleccionat una imatge")
+				console.log(img)
+				imagen = img;
+			}
+    </script>
+  </body>
+</html>
